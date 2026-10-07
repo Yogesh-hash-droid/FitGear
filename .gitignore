@@ -1,0 +1,29 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Backend build output
+backend/target/
+*.class
+*.jar
+!mvnw.jar
+
+# Frontend dependencies & build output
+frontend/node_modules/
+frontend/dist/
+
+# Environment files & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
