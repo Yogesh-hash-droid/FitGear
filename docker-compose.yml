@@ -1,0 +1,60 @@
+# FitGear - full stack in one command:  docker compose up --build
+# Copy .env.example to .env first and fill in the required values.
+
+name: fitgear
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: fitgear
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      MYSQL_URL: jdbc:mysql://mysql:3306/fitgear?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      # Security - no defaults in source, must come from .env (min 32 chars)
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (32+ chars)}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-PT12H}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+      # Admin account provisioned on startup; public registration is customer-only
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@fitgear.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # Razorpay test mode - leave empty to run COD-only
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      SEED_PRODUCTS: ${SEED_PRODUCTS:-true}
+    ports:
+      # Exposed for direct API/SSE access and Razorpay webhook testing;
+      # the browser normally reaches the API through the nginx proxy below.
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+
+volumes:
+  mysql-data:
