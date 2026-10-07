@@ -25,22 +25,28 @@ public class OrderItem {
 
     private Long productId;
     private String productName;
+    private String imageUrl;
     private BigDecimal unitPrice;
     private Integer quantity;
 
-    public OrderItem() {}
+    public OrderItem() {
+    }
 
-    public OrderItem(Order order, Long productId, String productName, BigDecimal unitPrice, Integer quantity) {
+    public OrderItem(Order order, Long productId, String productName, String imageUrl,
+                     BigDecimal unitPrice, Integer quantity) {
         this.order = order;
         this.productId = productId;
         this.productName = productName;
+        this.imageUrl = imageUrl;
         this.unitPrice = unitPrice;
         this.quantity = quantity;
     }
 
     public Long getId() { return id; }
+    public Order getOrder() { return order; }
     public Long getProductId() { return productId; }
     public String getProductName() { return productName; }
+    public String getImageUrl() { return imageUrl; }
     public BigDecimal getUnitPrice() { return unitPrice; }
     public Integer getQuantity() { return quantity; }
 }

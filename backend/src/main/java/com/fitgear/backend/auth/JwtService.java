@@ -2,12 +2,12 @@ package com.fitgear.backend.auth;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -20,9 +20,13 @@ public class JwtService {
 
     public JwtService(
             @Value("${fitgear.jwt.secret}") String secret,
-            @Value("${fitgear.jwt.expiration:PT1H}") Duration expiration
+            @Value("${fitgear.jwt.expiration:PT12H}") Duration expiration
     ) {
-        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        if (secret == null || secret.trim().length() < 32) {
+            throw new IllegalStateException(
+                    "JWT secret must be set via the JWT_SECRET environment variable and be at least 32 characters long");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(secret.trim().getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
     }
 

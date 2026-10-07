@@ -3,7 +3,7 @@ package com.fitgear.backend.order;
 public enum OrderStatus {
     PLACED,
     CONFIRMED,
-    PACKED,
+    PROCESSING,
     SHIPPED,
     DELIVERED,
     CANCELLED

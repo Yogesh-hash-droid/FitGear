@@ -3,6 +3,7 @@ package com.fitgear.backend.product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,36 +17,25 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
+    @Transactional
     public Product createProduct(String name, String description, BigDecimal price, Integer stock, String category, String imageUrl) {
         String normalizedCategory = category == null || category.isBlank() ? "Strength" : category;
         Product product = new Product(name, description, price, stock, normalizedCategory, imageUrl);
         return productRepository.save(product);
     }
 
-    public Product createProduct(String name, String description, BigDecimal price, Integer stock) {
-        return createProduct(name, description, price, stock, null, null);
-    }
-
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public Page<Product> searchProducts(String search, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        String normalizedCategory = category == null || category.isBlank() ? null : category.trim();
+        return productRepository.search(normalizedSearch, normalizedCategory, minPrice, maxPrice, pageable);
     }
 
     public Page<Product> searchProducts(String search, Pageable pageable) {
-        return searchProducts(search, null, pageable);
+        return searchProducts(search, null, null, null, pageable);
     }
 
     public Page<Product> searchProducts(String search, String category, Pageable pageable) {
-        boolean hasSearch = search != null && !search.isBlank();
-        boolean hasCategory = category != null && !category.isBlank();
-        if (!hasSearch && !hasCategory) {
-            return productRepository.findAll(pageable);
-        }
-        if (!hasSearch) return productRepository.findByCategoryIgnoreCase(category.trim(), pageable);
-        if (!hasCategory) {
-            return productRepository.findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
-                    search.trim(), search.trim(), pageable);
-        }
-        return productRepository.findByCategoryAndTerm(category.trim(), search.trim(), pageable);
+        return searchProducts(search, category, null, null, pageable);
     }
 
     public Product getProductById(Long id) {
@@ -53,6 +43,7 @@ public class ProductService {
                 .orElseThrow(() -> new ProductNotFoundException(id));
     }
 
+    @Transactional
     public Product updateProduct(Long id, String name, String description, BigDecimal price, Integer stock, String category, String imageUrl) {
         Product existingProduct = getProductById(id);
         existingProduct.setName(name);
@@ -64,8 +55,13 @@ public class ProductService {
         return productRepository.save(existingProduct);
     }
 
+    @Transactional
     public void deleteProduct(Long id) {
         Product existingProduct = getProductById(id);
         productRepository.delete(existingProduct);
+    }
+
+    public List<String> getCategories() {
+        return productRepository.findDistinctCategories();
     }
 }

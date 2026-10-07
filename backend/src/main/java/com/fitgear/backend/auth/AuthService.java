@@ -2,6 +2,7 @@ package com.fitgear.backend.auth;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -16,12 +17,14 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    @Transactional
     public void register(RegisterRequest request) {
         String normalizedEmail = request.email().trim().toLowerCase();
         if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new EmailAlreadyRegisteredException(normalizedEmail);
         }
 
+        // Public registration can NEVER create an admin account.
         AppUser user = new AppUser(
                 request.name().trim(),
                 normalizedEmail,
@@ -46,5 +49,20 @@ public class AuthService {
             user.getEmail(),
             user.getRole()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public ProfileResponse getProfile(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .map(ProfileResponse::from)
+                .orElseThrow(() -> new UserNotFoundException("Authenticated user not found"));
+    }
+
+    @Transactional
+    public ProfileResponse updateProfile(String email, UpdateProfileRequest request) {
+        AppUser user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new UserNotFoundException("Authenticated user not found"));
+        user.setName(request.name().trim());
+        return ProfileResponse.from(userRepository.save(user));
     }
 }
