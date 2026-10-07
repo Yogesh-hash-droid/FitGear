@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createProduct, deleteProduct, fetchAdminProducts, updateProduct } from '../services/api'
-import './AdminProductsPage.css'
+import './AdminPages.css'
 
 const emptyProduct = {
   name: '',
