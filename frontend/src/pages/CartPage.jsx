@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
+import ProductImage from '../components/ProductImage'
 import { useAuth } from '../context/useAuth'
 import { useCart } from '../context/useCart'
 import { useToast } from '../context/useToast'
@@ -73,8 +74,8 @@ export default function CartPage() {
               {items.map((item) => (
                 <div className="cart-row" key={item.id}>
                   <div className="cart-row-product">
-                    <div className={`cart-thumb visual-${item.id % 4}`}>
-                      {item.imageUrl ? <img src={item.imageUrl} alt={item.name} /> : <span>F</span>}
+                    <div className="cart-thumb">
+                      <ProductImage src={item.imageUrl} name={item.name} category={item.category} />
                     </div>
                     <div>
                       <Link to={`/products/${item.id}`}><strong>{item.name}</strong></Link>

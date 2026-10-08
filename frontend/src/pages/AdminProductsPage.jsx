@@ -12,7 +12,18 @@ const emptyProduct = {
   imageUrl: '',
 }
 
-const categories = ['Strength', 'Recovery', 'Accessories', 'Cardio']
+const categories = [
+  'Dumbbells',
+  'Barbells',
+  'Weight Plates',
+  'Benches',
+  'Racks',
+  'Home Gym',
+  'Strength',
+  'Recovery',
+  'Accessories',
+  'Cardio',
+]
 
 function getErrorMessage(error) {
   return error.response?.data?.message || error.response?.data?.error || error.message || 'Please try again.'
@@ -122,7 +133,7 @@ export default function AdminProductsPage() {
   return (
     <main className="admin-page site-shell">
       <nav className="nav-bar">
-        <Link className="brand" to="/"><span>F</span> FITGEAR</Link>
+        <Link className="brand" to="/"><span className="brand-mark">F</span> FitGear</Link>
         <Link className="back-link" to="/">Back to storefront</Link>
       </nav>
 

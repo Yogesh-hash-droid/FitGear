@@ -24,5 +24,46 @@ export default function LoginPage() {
     }
   }
 
-  return <main className="auth-page site-shell"><nav className="nav-bar"><Link className="brand" to="/"><span>F</span> FITGEAR</Link><Link className="back-link" to="/">Back to home</Link></nav><section className="auth-card"><p className="eyebrow">WELCOME BACK</p><h1>Return to<br /><em>the work.</em></h1><form onSubmit={handleSubmit}><label>Email<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></label><label>Password<input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /></label>{error && <p className="form-error">{error}</p>}<button className="primary-button" disabled={submitting}>{submitting ? 'Signing in...' : 'Sign in'} <span>↗</span></button></form><p className="auth-switch">New to FitGear? <Link to="/register">Create an account</Link></p></section></main>
+  return (
+    <main className="auth-page site-shell">
+      <nav className="nav-bar">
+        <Link className="brand" to="/"><span className="brand-mark">F</span> FitGear</Link>
+        <Link className="back-link" to="/">Back to home</Link>
+      </nav>
+
+      <section className="auth-card">
+        <p className="eyebrow">Welcome back</p>
+        <h1>Return to <em>the work.</em></h1>
+
+        <form onSubmit={handleSubmit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) => setForm({ ...form, email: event.target.value })}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={form.password}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
+              required
+            />
+          </label>
+          {error && <p className="form-error">{error}</p>}
+          <button className="primary-button" disabled={submitting}>
+            {submitting ? 'Signing in...' : 'Sign in'} <span>→</span>
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          New to FitGear? <Link to="/register">Create an account</Link>
+        </p>
+      </section>
+    </main>
+  )
 }

@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
 import OrderTimeline from '../components/OrderTimeline'
+import ProductImage from '../components/ProductImage'
 import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../context/useToast'
 import { cancelOrder, errorMessage, fetchOrder } from '../services/api'
@@ -129,8 +130,8 @@ export default function OrderDetailPage() {
                   <div className="order-items-table">
                     {(order.items || []).map((item) => (
                       <div className="order-item-row" key={item.productId}>
-                        <div className={`cart-thumb visual-${(item.productId || 0) % 4}`}>
-                          {item.imageUrl ? <img src={item.imageUrl} alt={item.productName} /> : <span>F</span>}
+                        <div className="cart-thumb">
+                          <ProductImage src={item.imageUrl} name={item.productName} />
                         </div>
                         <div>
                           <Link to={`/products/${item.productId}`}><strong>{item.productName}</strong></Link>

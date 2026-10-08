@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
 import ProductCard from '../components/ProductCard'
+import ProductImage from '../components/ProductImage'
+import SectionHeader from '../components/SectionHeader'
 import { errorMessage, fetchProduct, fetchProducts } from '../services/api'
 import { useCart } from '../context/useCart'
 import { useToast } from '../context/useToast'
@@ -67,6 +69,15 @@ export default function ProductDetailPage() {
     }
   }
 
+  async function handleRelatedAdd(item) {
+    try {
+      await add(item, 1)
+      push(`${item.name} added to your bag.`, 'success')
+    } catch (requestError) {
+      push(errorMessage(requestError, 'Could not add to bag.'), 'error')
+    }
+  }
+
   const outOfStock = product ? Number(product.stock) === 0 : false
 
   return (
@@ -86,17 +97,20 @@ export default function ProductDetailPage() {
         ) : (
           <>
             <div className="product-detail-layout">
-              <div className={`product-detail-visual visual-${product.id % 4}`}>
-                <span>{product.category || 'FITGEAR'}</span>
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} />
-                ) : (
-                  <div className="visual-shape" />
-                )}
+              <div className="product-detail-visual">
+                <ProductImage
+                  src={product.imageUrl}
+                  name={product.name}
+                  category={product.category}
+                  loading="eager"
+                />
+                <span className={`product-badge ${outOfStock ? 'badge-out' : ''}`}>
+                  {outOfStock ? 'Sold out' : product.category || 'FitGear'}
+                </span>
               </div>
 
               <div className="product-detail-copy">
-                <p className="eyebrow">{product.category || 'EQUIPMENT'}</p>
+                <p className="eyebrow">{product.category || 'Equipment'}</p>
                 <h1>{product.name}</h1>
                 <p className="detail-description">{product.description}</p>
                 <strong className="detail-price">{formatPrice(product.price)}</strong>
@@ -140,20 +154,57 @@ export default function ProductDetailPage() {
                 >
                   {outOfStock ? 'Unavailable' : adding ? 'Adding…' : <>Add to bag <span>+</span></>}
                 </button>
+
+                <ul className="pdp-points">
+                  <li>Free shipping on selected fitness equipment</li>
+                  <li>Cash on delivery or secure online payment</li>
+                  <li>Live order tracking from dispatch to delivery</li>
+                </ul>
               </div>
+            </div>
+
+            <div className="pdp-sections">
+              <section className="info-section" aria-labelledby="info-heading">
+                <h2 id="info-heading">Product information</h2>
+                <p>{product.description}</p>
+                <dl className="info-facts">
+                  <div><dt>Category</dt><dd>{product.category || '—'}</dd></div>
+                  <div><dt>Price</dt><dd>{formatPrice(product.price)}</dd></div>
+                  <div>
+                    <dt>Availability</dt>
+                    <dd>{outOfStock ? 'Out of stock' : `${product.stock} in stock`}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="info-section" aria-labelledby="shipping-heading">
+                <h2 id="shipping-heading">Shipping &amp; delivery</h2>
+                <ul>
+                  <li>Free shipping on selected fitness equipment</li>
+                  <li>Cash on delivery available at checkout</li>
+                  <li>Live order status updates in your account</li>
+                </ul>
+              </section>
+
+              <section className="info-section" aria-labelledby="why-heading">
+                <h2 id="why-heading">Why buy from FitGear</h2>
+                <ul>
+                  <li>Equipment chosen for hard, repeated training</li>
+                  <li>Secure Razorpay checkout — card, UPI, netbanking</li>
+                  <li>Every order tracked live, start to finish</li>
+                </ul>
+              </section>
             </div>
 
             {related.length > 0 && (
               <div className="related-section">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">MORE FROM {product.category?.toUpperCase()}</p>
-                    <h2>You might also need.</h2>
-                  </div>
-                </div>
+                <SectionHeader
+                  eyebrow={`More from ${product.category || 'the catalog'}`}
+                  title="You might also need."
+                />
                 <div className="product-grid">
-                  {related.map((item, index) => (
-                    <ProductCard key={item.id} product={item} index={index} />
+                  {related.map((item) => (
+                    <ProductCard key={item.id} product={item} onAdd={handleRelatedAdd} />
                   ))}
                 </div>
               </div>

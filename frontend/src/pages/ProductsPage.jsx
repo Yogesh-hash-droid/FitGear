@@ -3,11 +3,23 @@ import { useSearchParams } from 'react-router-dom'
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
 import ProductCard from '../components/ProductCard'
+import SkeletonCards from '../components/SkeletonCards'
 import { errorMessage, fetchCategories, fetchProducts } from '../services/api'
 import { useCart } from '../context/useCart'
 import { useToast } from '../context/useToast'
 
-const FALLBACK_CATEGORIES = ['Strength', 'Cardio', 'Recovery', 'Accessories']
+const FALLBACK_CATEGORIES = [
+  'Dumbbells',
+  'Barbells',
+  'Weight Plates',
+  'Benches',
+  'Racks',
+  'Home Gym',
+  'Strength',
+  'Recovery',
+  'Accessories',
+  'Cardio',
+]
 
 const SORT_OPTIONS = [
   { value: 'name,asc', label: 'Name A–Z' },
@@ -45,6 +57,14 @@ export default function ProductsPage() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput])
+
+  // Keep the box in sync when the URL search param changes externally
+  // (for example the navbar search form navigating here).
+  useEffect(() => {
+    const incoming = searchParams.get('search') || ''
+    if (incoming !== searchInput) setSearchInput(incoming)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     let active = true
@@ -101,6 +121,16 @@ export default function ProductsPage() {
     setSearchParams(next)
   }
 
+  function resetFilters() {
+    setSearchInput('')
+    setSearch('')
+    setMinPrice('')
+    setMaxPrice('')
+    setSort('name,asc')
+    setPage(0)
+    setSearchParams(new URLSearchParams())
+  }
+
   const totalPages = useMemo(
     () => Math.max(1, data.totalPages || Math.ceil((data.totalElements || 0) / 12)),
     [data],
@@ -119,102 +149,127 @@ export default function ProductsPage() {
     <div className="site-shell">
       <Navbar />
 
-      <section className="catalog-section page-catalog">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">THE FULL CATALOG</p>
-            <h2>{category || 'All equipment.'}</h2>
-          </div>
-          <div className="catalog-tools">
-            <label htmlFor="product-search">Search products</label>
-            <input
-              id="product-search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Try “dumbbell”"
-            />
-            <span className="status online">Live catalog</span>
-          </div>
-        </div>
+      <section className="section page-catalog">
+        <div className="catalog-layout">
+          <aside className="filter-sidebar" aria-label="Product filters">
+            <div className="filter-block">
+              <h3>Search</h3>
+              <div className="filter-search">
+                <input
+                  id="product-search"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Try “dumbbell”"
+                />
+              </div>
+            </div>
 
-        <div className="filter-bar">
-          <div className="filter-group" role="group" aria-label="Categories">
-            <button type="button" className={!category ? 'active' : ''} onClick={() => selectCategory('')}>
-              All
-            </button>
-            {categories.map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={category === name ? 'active' : ''}
-                onClick={() => selectCategory(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-
-          <div className="filter-group price-filters">
-            <label>
-              Min ₹
-              <input
-                type="number"
-                min="0"
-                value={minPrice}
-                onChange={(event) => setMinPrice(event.target.value)}
-                placeholder="0"
-              />
-            </label>
-            <label>
-              Max ₹
-              <input
-                type="number"
-                min="0"
-                value={maxPrice}
-                onChange={(event) => setMaxPrice(event.target.value)}
-                placeholder="Any"
-              />
-            </label>
-            <label>
-              Sort
-              <select value={sort} onChange={(event) => setSort(event.target.value)}>
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+            <div className="filter-block">
+              <h3>Category</h3>
+              <div className="filter-list" role="group" aria-label="Categories">
+                <button
+                  type="button"
+                  className={!category ? 'active' : ''}
+                  onClick={() => selectCategory('')}
+                >
+                  All equipment
+                </button>
+                {categories.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={category === name ? 'active' : ''}
+                    onClick={() => selectCategory(name)}
+                  >
+                    {name}
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
+
+            <div className="filter-block">
+              <h3>Price &amp; sort</h3>
+              <div className="price-filters">
+                <label>
+                  Min ₹
+                  <input
+                    type="number"
+                    min="0"
+                    value={minPrice}
+                    onChange={(event) => setMinPrice(event.target.value)}
+                    placeholder="0"
+                  />
+                </label>
+                <label>
+                  Max ₹
+                  <input
+                    type="number"
+                    min="0"
+                    value={maxPrice}
+                    onChange={(event) => setMaxPrice(event.target.value)}
+                    placeholder="Any"
+                  />
+                </label>
+                <label>
+                  Sort by
+                  <select value={sort} onChange={(event) => setSort(event.target.value)}>
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <button className="clear-filter" type="button" onClick={resetFilters}>
+              Clear filters
+            </button>
+          </aside>
+
+          <div className="catalog-main">
+            <div className="catalog-main-head">
+              <div>
+                <p className="eyebrow">The full catalog</p>
+                <h1>{category || 'All equipment'}</h1>
+              </div>
+              <span className="catalog-count">
+                {loading ? 'Loading…' : `${data.totalElements} products`}
+              </span>
+            </div>
+
+            {error && <p className="form-error" role="alert">{error}</p>}
+
+            {loading ? (
+              <div className="product-grid">
+                <SkeletonCards count={6} />
+              </div>
+            ) : data.content?.length ? (
+              <div className="product-grid">
+                {data.content.map((product) => (
+                  <ProductCard key={product.id} product={product} onAdd={handleAdd} />
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No products match those filters.</p>
+            )}
+
+            {totalPages > 1 && (
+              <nav className="pagination" aria-label="Product pages">
+                <button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
+                  ← Previous
+                </button>
+                <span>Page {page + 1} of {totalPages} · {data.totalElements} products</span>
+                <button
+                  type="button"
+                  disabled={page + 1 >= totalPages}
+                  onClick={() => setPage((value) => value + 1)}
+                >
+                  Next →
+                </button>
+              </nav>
+            )}
           </div>
         </div>
-
-        {error && <p className="form-error" role="alert">{error}</p>}
-
-        <div className="product-grid">
-          {loading ? (
-            <p className="empty-state">Loading the collection...</p>
-          ) : data.content?.length ? (
-            data.content.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={page * 12 + index} onAdd={handleAdd} />
-            ))
-          ) : (
-            <p className="empty-state">No products match those filters.</p>
-          )}
-        </div>
-
-        {totalPages > 1 && (
-          <nav className="pagination" aria-label="Product pages">
-            <button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
-              ← Previous
-            </button>
-            <span>Page {page + 1} of {totalPages} · {data.totalElements} products</span>
-            <button
-              type="button"
-              disabled={page + 1 >= totalPages}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              Next →
-            </button>
-          </nav>
-        )}
       </section>
 
       <Footer />
