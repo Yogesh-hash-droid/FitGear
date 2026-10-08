@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,7 +49,8 @@ class SecurityFlowIntegrationTest {
 
     @BeforeEach
     void resetDatabase() {
-        // Respect FK order: cart -> order_items -> payments -> orders -> products -> users
+        // Respect FK order: reviews -> cart -> order_items -> payments -> orders -> products -> users
+        jdbcTemplate.update("DELETE FROM product_reviews");
         jdbcTemplate.update("DELETE FROM cart_items");
         jdbcTemplate.update("DELETE FROM order_items");
         jdbcTemplate.update("DELETE FROM payments");
@@ -244,6 +246,133 @@ class SecurityFlowIntegrationTest {
     }
 
     // ------------------------------------------------------------------
+    // product reviews
+    // ------------------------------------------------------------------
+
+    @Test
+    void reviewReadsArePublicButWritesRequireSignIn() throws Exception {
+        String adminToken = login(adminEmail, "AdminPass123!");
+        long productId = createProduct(adminToken, "Public Review Rack", "2000", 3);
+
+        mockMvc.perform(get("/api/products/" + productId + "/reviews"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/products/" + productId + "/reviews/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalReviews").value(0))
+                .andExpect(jsonPath("$.averageRating").value(0.0))
+                .andExpect(jsonPath("$.distribution['5']").value(0));
+
+        mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":5}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/reviews/mine?productId=" + productId))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/reviews/1"))
+                .andExpect(status().isUnauthorized());
+
+        // Public reads still 404 for a product that does not exist
+        mockMvc.perform(get("/api/products/999999/reviews"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void customerCanCreateUpdateReadAndDeleteTheirOwnReview() throws Exception {
+        String adminToken = login(adminEmail, "AdminPass123!");
+        String token = registerAndLogin("reviewer@fitgear.test", "Password123");
+        long productId = createProduct(adminToken, "Reviewed Bench", "1500", 4);
+
+        mockMvc.perform(get("/api/reviews/mine?productId=" + productId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isNoContent());
+
+        long reviewId = createReview(token, productId, 4, "Solid", "Stable under load.");
+
+        // Posting again updates the same row rather than adding a second review
+        mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":5,\"title\":\"Revised\",\"body\":\"Even better after a month.\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(reviewId))
+                .andExpect(jsonPath("$.rating").value(5))
+                .andExpect(jsonPath("$.title").value("Revised"));
+
+        mockMvc.perform(get("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].rating").value(5))
+                .andExpect(jsonPath("$.content[0].userName").value("Flow User"));
+
+        mockMvc.perform(get("/api/reviews/mine?productId=" + productId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rating").value(5));
+
+        mockMvc.perform(get("/api/products/" + productId + "/reviews/summary")
+                        .header("Authorization", bearer(token)))
+                .andExpect(jsonPath("$.averageRating").value(5.0))
+                .andExpect(jsonPath("$.totalReviews").value(1))
+                .andExpect(jsonPath("$.distribution['5']").value(1))
+                .andExpect(jsonPath("$.distribution['1']").value(0));
+
+        mockMvc.perform(delete("/api/reviews/" + reviewId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/products/" + productId + "/reviews"))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void customerCannotDeleteAnotherCustomersReview() throws Exception {
+        String adminToken = login(adminEmail, "AdminPass123!");
+        String ownerToken = registerAndLogin("review-owner@fitgear.test", "Password123");
+        String intruderToken = registerAndLogin("review-intruder@fitgear.test", "Password123");
+        long productId = createProduct(adminToken, "Contested Rack", "2500", 2);
+
+        long reviewId = createReview(ownerToken, productId, 3, "Mine", "Owner review.");
+
+        mockMvc.perform(delete("/api/reviews/" + reviewId)
+                        .header("Authorization", bearer(intruderToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/products/" + productId + "/reviews"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        // The owner still can
+        mockMvc.perform(delete("/api/reviews/" + reviewId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void reviewValidationRejectsRatingOutsideRange() throws Exception {
+        String adminToken = login(adminEmail, "AdminPass123!");
+        String token = registerAndLogin("review-validate@fitgear.test", "Password123");
+        long productId = createProduct(adminToken, "Validated Bench", "900", 7);
+
+        mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":9}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.rating").exists());
+
+        mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":null}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.rating").value("Rating must be between 1 and 5"));
+    }
+
+    // ------------------------------------------------------------------
     // helpers
     // ------------------------------------------------------------------
 
@@ -251,6 +380,16 @@ class SecurityFlowIntegrationTest {
         return "Bearer " + token;
     }
 
+    private long createReview(String token, long productId, int rating, String title, String body) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/products/" + productId + "/reviews")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":" + rating
+                                + ",\"title\":\"" + title + "\",\"body\":\"" + body + "\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    }
     private String registerAndLogin(String email, String password) throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

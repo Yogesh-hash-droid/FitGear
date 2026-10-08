@@ -37,6 +37,7 @@ FitGear/
 │   ├── src/main/java/com/fitgear/backend/
 │   │   ├── auth/            register, login, profile (JWT)
 │   │   ├── product/         catalog, search/filter/sort, categories, seeder
+│   │   ├── review/          product ratings (1-5), one review per customer
 │   │   ├── cart/            server-side cart with computed totals
 │   │   ├── order/           placement, lifecycle transitions, cancellation
 │   │   ├── payment/         Razorpay + COD, signature verification, webhook
@@ -45,11 +46,12 @@ FitGear/
 │   │   ├── security/        JWT filter, SecurityConfig, RBAC rules
 │   │   ├── config/          CORS, admin provisioning
 │   │   └── exception/       global error handler
-│   └── src/main/resources/db/migration/V1__init.sql   ← schema source of truth
+│   └── src/main/resources/db/migration/    ← schema source of truth (V1, V2)
 ├── frontend/                React SPA (Vite)
 │   └── src/
 │       ├── pages/           14 routes (store, checkout, orders, admin, 404)
-│       ├── components/      Navbar, Footer, ProductCard, OrderTimeline, StatusBadge
+│       ├── components/      Navbar, Footer, ProductCard, OrderTimeline, StatusBadge,
+│       │                    StarRating, ReviewSummary, ReviewForm, ProductReviews
 │       ├── context/         Auth, Cart (guest+server), Toast
 │       ├── services/        api.js (axios + 401 interceptor), sse.js (SSE client)
 │       └── utils/format.js  price/date/status helpers, transition map
@@ -82,7 +84,7 @@ npm install
 npm run dev
 ```
 
-The dev database is in-memory H2 (Flyway-migrated on startup) and 11 demo products are
+The dev database is in-memory H2 (Flyway-migrated on startup) and 21 demo products are
 seeded automatically (`SEED_PRODUCTS=false` to skip).
 
 ### B. Docker Compose (production-shaped)
@@ -130,6 +132,15 @@ All endpoints are under `/api`. Roles: **P** = public, **C** = authenticated cus
 | POST/PUT/DELETE | `/products[/{id}]` | A | validation: name ≤ 120, price > 0, stock ≥ 0, image ≤ 2048 |
 | GET | `/categories` | P | distinct category names |
 
+### Reviews (one per customer per product — posting again updates it)
+| Method | Path | Role | Notes |
+|--------|------|------|-------|
+| GET | `/products/{id}/reviews` | P | `page, size, sort` (`createdAt`·`rating`·`id`) → Spring `Page` |
+| GET | `/products/{id}/reviews/summary` | P | `{averageRating, totalReviews, distribution{5..1}}` — always all five buckets |
+| GET | `/reviews/mine?productId=` | C | own review, **204** when none |
+| POST | `/products/{id}/reviews` | C | `{rating: 1-5, title?, body?}` → upserts the caller's review |
+| DELETE | `/reviews/{reviewId}` | C/A | owner only, unless admin; **403** otherwise |
+
 ### Cart (server-computed totals — prices never accepted from the client)
 | Method | Path | Role |
 |--------|------|------|
@@ -170,7 +181,7 @@ Security rules: everything else under `/api/**` needs a valid JWT; failures → 
 insufficient role → 403. All validation/business errors return the same JSON envelope
 `{status, message}` from the global handler.
 
-## Data model (Flyway `V1__init.sql`)
+## Data model (Flyway `V1__init.sql`, `V2__product_reviews.sql`)
 
 ```
 users(id, name, email UQ, password, role, created_at)
@@ -182,6 +193,8 @@ orders(id, user_id FK, status, subtotal, total,
 order_items(id, order_id FK, product_id, product_name, image_url, unit_price, quantity)
 payments(id, order_id FK, method RAZORPAY|COD, status PENDING|PAID|FAILED|REFUNDED|CANCELLED,
          razorpay_order_id, razorpay_payment_id, amount, created_at)
+product_reviews(id, product_id FK ON DELETE CASCADE, user_id FK, rating 1-5, title, body,
+                created_at, updated_at, UQ(user_id, product_id), CHECK(rating BETWEEN 1 AND 5))
 ```
 
 Prices are `DECIMAL(19,2)`; order items snapshot name/price/image at purchase time.
@@ -219,21 +232,22 @@ Notable mechanics:
 ## Testing
 
 ```bash
-cd backend && mvnw test        # 40 tests (services + MockMvc integration)
+cd backend && mvnw test        # 63 tests (services + MockMvc integration)
 cd frontend && npm run lint && npm run build
 ```
 
 Coverage includes: auth + RBAC (401/403 matrix), cart & stock validation, order
 placement/cancellation (stock restore, refund state), payment signature accept/reject,
-lifecycle transition rules, admin dashboard, SSE hub behaviour, and a full
-register→login→cart→order security-flow integration test.
+lifecycle transition rules, admin dashboard, SSE hub behaviour, review upsert +
+ownership + rating validation, and a full register→login→cart→order security-flow
+integration test.
 
 ## Limitations
 
 - **Docker not verified locally** — Docker isn't installed on this machine; compose files are written but untested (backend/frontend builds were verified natively).
 - SSE hub is single-node by design; horizontal scaling would move it behind a shared broker (e.g. Redis pub/sub).
 - COD refunds are recorded as `REFUNDED` state only — no payment-gateway refund API call.
-- No email/SMS notifications, wishlist, reviews, or coupon engine.
+- No email/SMS notifications, wishlist, or coupon engine.
 
 ## Study guide — where to read first
 
@@ -245,7 +259,8 @@ register→login→cart→order security-flow integration test.
 | Payments & signatures | `backend/.../payment/PaymentService.java`, `util/SignatureUtils.java` |
 | SSE hub | `backend/.../notification/NotificationService.java` + `frontend/src/services/sse.js` |
 | Error handling | `backend/.../exception/GlobalExceptionHandler.java` |
-| Schema | `backend/src/main/resources/db/migration/V1__init.sql` |
+| Schema | `backend/src/main/resources/db/migration/V1__init.sql`, `V2__product_reviews.sql` |
+| Reviews & aggregate rating | `backend/.../review/ReviewService.java` + `frontend/src/components/ProductReviews.jsx` |
 | Full API contract test | `backend/src/test/.../security/SecurityFlowIntegrationTest.java` |
 | Frontend data layer | `frontend/src/services/api.js`, `context/CartContext.jsx` |
 | Checkout UX | `frontend/src/pages/CheckoutPage.jsx` |

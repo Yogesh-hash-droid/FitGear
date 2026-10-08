@@ -13,6 +13,8 @@ import com.fitgear.backend.payment.PaymentException;
 import com.fitgear.backend.payment.PaymentNotConfiguredException;
 import com.fitgear.backend.payment.PaymentVerificationException;
 import com.fitgear.backend.product.ProductNotFoundException;
+import com.fitgear.backend.review.ReviewAccessException;
+import com.fitgear.backend.review.ReviewNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,12 +109,19 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.UNAUTHORIZED, exception.getMessage());
     }
 
-    // ---- 403 handled by Spring Security (AccessDeniedHandler) ------------
+    // ---- 403 Forbidden (thrown from the service) ------------------------
+
+    @ExceptionHandler(ReviewAccessException.class)
+    public ResponseEntity<ApiError> handleReviewAccess(ReviewAccessException exception) {
+        return body(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
+    // ---- 403 from Spring Security handled by AccessDeniedHandler --------
 
     // ---- 404 -------------------------------------------------------------
 
     @ExceptionHandler({ProductNotFoundException.class, OrderNotFoundException.class,
-            CartItemNotFoundException.class, NoResourceFoundException.class})
+            CartItemNotFoundException.class, ReviewNotFoundException.class, NoResourceFoundException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException exception) {
         return body(HttpStatus.NOT_FOUND, exception.getMessage());
     }

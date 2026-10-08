@@ -4,6 +4,7 @@ import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
 import ProductCard from '../components/ProductCard'
 import ProductImage from '../components/ProductImage'
+import ProductReviews from '../components/ProductReviews'
 import SectionHeader from '../components/SectionHeader'
 import { errorMessage, fetchProduct, fetchProducts } from '../services/api'
 import { useCart } from '../context/useCart'
@@ -195,6 +196,8 @@ export default function ProductDetailPage() {
                 </ul>
               </section>
             </div>
+
+            <ProductReviews key={product.id} product={product} />
 
             {related.length > 0 && (
               <div className="related-section">

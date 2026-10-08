@@ -188,6 +188,45 @@ export async function verifyPayment(payload) {
 }
 
 // ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+/** params: { page, size, sort } — sorts allowed: createdAt, rating, id */
+export async function fetchReviews(productId, params = {}) {
+  const response = await api.get(`/products/${productId}/reviews`, { params })
+  return response.data
+}
+
+export async function fetchReviewSummary(productId) {
+  const response = await api.get(`/products/${productId}/reviews/summary`)
+  return response.data
+}
+
+/**
+ * The signed-in customer's own review. Returns null when they have not
+ * written one (the server answers 204), which axios delivers as an empty body.
+ */
+export async function fetchMyReview(productId) {
+  try {
+    const response = await api.get('/reviews/mine', { params: { productId } })
+    return response.data || null
+  } catch (error) {
+    if (error.response?.status === 204) return null
+    throw error
+  }
+}
+
+/** Creates the caller's review, or replaces it if they already have one. */
+export async function submitReview(productId, payload) {
+  const response = await api.post(`/products/${productId}/reviews`, payload)
+  return response.data
+}
+
+export async function deleteReview(reviewId) {
+  await api.delete(`/reviews/${reviewId}`)
+}
+
+// ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
 

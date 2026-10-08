@@ -1,7 +1,6 @@
 package com.fitgear.backend.security;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -52,6 +51,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**", "/api/categories").permitAll()
                         .requestMatchers("/api/payments/webhook").permitAll()
                         .requestMatchers("/actuator/health", "/error", "/h2-console/**").permitAll()
+
+                        // Reviews: reads are public via the product rule above;
+                        // writes are for signed-in customers (admins moderate too)
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasAnyRole("CUSTOMER", "ADMIN")
+                        .requestMatchers("/api/reviews/**").hasAnyRole("CUSTOMER", "ADMIN")
 
                         // Admin-only: product writes, order management, dashboard
                         .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
