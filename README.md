@@ -110,7 +110,17 @@ docker compose up --build
 | `MYSQL_URL` / `MYSQL_USERNAME` / `MYSQL_PASSWORD` | for mysql profile | JDBC connection |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | no | leave empty → COD-only checkout |
 | `SEED_PRODUCTS` | no | seed demo catalog on empty DB (default `true`) |
-| `VITE_API_URL` | no (dev) | overrides API base; production default is same-origin `/api` |
+| `SPRING_PROFILES_ACTIVE` | prod | `mysql` = production-shaped profile (env-driven MySQL, `server.port=${PORT:8080}`) |
+| `DB_POOL_MAX_SIZE` / `DB_POOL_MIN_IDLE` | no | Hikari pool bounds on the `mysql` profile (defaults 10 / 2) |
+| `VITE_API_BASE_URL` | **yes (Vercel)** | deployed backend API base, e.g. `https://YOUR-RENDER-BACKEND-URL.onrender.com/api` |
+| `VITE_API_URL` | no | legacy alias for the API base (still honoured) |
+
+## Deployment
+
+Production architecture: **Vercel (React) → Render (Spring Boot) → Aiven (MySQL)**.
+Step-by-step dashboard instructions, environment variables, Aiven TLS setup,
+Razorpay test-mode/webhook configuration, SSE notes and troubleshooting live in
+[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
 
 ## API reference
 

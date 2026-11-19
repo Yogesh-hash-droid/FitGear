@@ -2,3 +2,14 @@ target/
 *.log
 .git/
 .vscode/
+
+# Never let local secrets/credentials into the image build context.
+# Render copies secret files into the build context root - exclude them here.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.jks
+ca.pem
+*-truststore.*

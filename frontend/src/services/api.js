@@ -1,6 +1,12 @@
 ﻿import axios from 'axios'
 
+// Precedence:
+//   1. VITE_API_BASE_URL - deployed backend URL (Vercel), e.g. https://fitgear.onrender.com/api
+//   2. VITE_API_URL      - legacy override, still honoured
+//   3. dev               - local backend at :8080
+//   4. prod fallback     - same-origin /api (Docker/nginx deployment)
 const baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV ? 'http://localhost:8080/api' : '/api')
 

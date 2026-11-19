@@ -19,6 +19,12 @@ frontend/dist/
 !.env.example
 *.pem
 *.key
+# Java keystores (e.g. Aiven CA truststore) - never commit
+*.p12
+*.jks
+# Local run artifacts
+*.pid
+*.err
 
 # Logs
 *.log
